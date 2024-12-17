@@ -55,9 +55,7 @@ The GUI is built using **PyQt5** and interactive plots are powered by **PyQtGrap
 
 ## Install in Editable Mode:
 
-If you want to make changes to the code and test them in real time, install the project in editable mode:
-    ```bash 
-    pip install -e .
+If you want to make changes to the code and test them in real time, install the project in editable mode: pip install -e .
 
 This links the project directory to the Python environment, so changes to the source code are reflected immediately without needing to reinstall.
 
