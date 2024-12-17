@@ -55,7 +55,7 @@ The GUI is built using **PyQt5** and interactive plots are powered by **PyQtGrap
 
 ## Install in Editable Mode:
 
-If you want to make changes to the code and test them in real time, install the project in **editable mode**:
+If you want to make changes to the code and test them in real time, install the project in **editable mode:**
     ```bash
     pip install -e .
 
@@ -70,7 +70,6 @@ This links the project directory to the Python environment, so changes to the so
 - Simply run the following command to start the GUI:
     ```bash
     bo-corr-plot
-
 
 2. **Input Field:**
 
@@ -99,36 +98,6 @@ This links the project directory to the Python environment, so changes to the so
 
 6.	**Set Parameters:**
 - Use buttons like *“Set Param to Best X”* and *“Set Param to Pred. Best X”* to dynamically adjust the input range.
-
-
----
-
-### Project Structure
-
-bo_corr_plot/
-│
-├── pyproject.toml        # Project metadata and dependencies
-├── README.md             # Project documentation
-│
-├── bo_corr_plot/
-│   ├── __main__.py       # Entry point script
-│   ├── __init__.py       # Package initializer
-│   │
-│   ├── gui/
-│   │   ├── ui.py         # GUI layout and logic
-│   │   ├── param_widget.py  # Parameter input widgets
-│   │   ├── pyqtgraph_widget.py  # PyQtGraph-based plot widget
-│   │   └── dialogs.py    # Informational dialogs
-│   │
-│   ├── core/
-│   │   ├── acquisition.py  # Acquisition functions (EI, UCB)
-│   │   ├── bo.py        # Bayesian Optimization logic
-│   │
-│   ├── data/
-│   │   └── mock_data.py  # Mock objective function for fallback
-│   │
-│   └── epics/
-│       └── epics_interface.py  # EPICS PV handling
 
 
 ---
