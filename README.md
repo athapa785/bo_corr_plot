@@ -41,7 +41,7 @@ The GUI is built using **PyQt5** and interactive plots are powered by **PyQtGrap
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your_username/bo_corr_plot.git
+   git clone https://github.com/athapa785/bo_corr_plot.git
    cd bo_corr_plot
 
 2. **Create a virtual environment:**
@@ -55,7 +55,8 @@ The GUI is built using **PyQt5** and interactive plots are powered by **PyQtGrap
 
 ## Install in Editable Mode:
 
-If you want to make changes to the code and test them in real time, install the project in **editable mode:**
+If you want to make changes to the code and test them in real time, install the project in editable mode:
+
     ```bash
     pip install -e .
 
