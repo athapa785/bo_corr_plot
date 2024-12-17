@@ -1,2 +1,0 @@
-[console_scripts]
-bo-corr-plot = bo_corr_plot.__main__:main
