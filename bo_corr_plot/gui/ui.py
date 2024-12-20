@@ -1,139 +1,53 @@
-from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QComboBox, QPushButton, QDoubleSpinBox
-)
-from PyQt5.QtCore import Qt
-
+from PyQt5.QtWidgets import QWidget
+from epics import caget, caput  # Import epics for PV handling
 from .dialogs import InfoDialog
-from .param_widget import ParameterWidget
-from .pyqtgraph_widget import PyQtGraphWidget
-
+from .components import create_main_layout
 
 class MainWindow(QWidget):
-    def __init__(self, start_callback):
+    def __init__(self, start_callback, abort_callback):
         super().__init__()
         self.start_callback = start_callback
+        self.abort_callback = abort_callback
         self.initUI()
         self.best_x = None
         self.best_pred_x = None
+        self.initial_input_value = None
 
     def initUI(self):
-        main_layout = QVBoxLayout()
-
-        # First Line: Input and Objective PVs
-        pv_layout = QHBoxLayout()
-        input_pv_label = QLabel("Input PV:")
-        self.input_pv_edit = QLineEdit("")
-        pv_layout.addWidget(input_pv_label)
-        pv_layout.addWidget(self.input_pv_edit)
-
-        objective_pv_label = QLabel("Objective PV:")
-        self.objective_pv_edit = QLineEdit("")
-        pv_layout.addWidget(objective_pv_label)
-        pv_layout.addWidget(self.objective_pv_edit)
-        main_layout.addLayout(pv_layout)
-
-        # Second Line: Initial value, Min, Max, %, Wait Time
-        control_layout = QHBoxLayout()
-
-        initial_value_label = QLabel("Initial Value:")
-        self.initial_value_edit = QLineEdit("0.0")
-        control_layout.addWidget(initial_value_label)
-        control_layout.addWidget(self.initial_value_edit)
-
-        self.param_widget = ParameterWidget()  # Handles Min and Max range
-        control_layout.addWidget(self.param_widget)
-
-        percentage_label = QLabel("±%:")
-        self.percentage_spin = QDoubleSpinBox()
-        self.percentage_spin.setRange(0.0, 100.0)
-        self.percentage_spin.setValue(7.0)  # Default to 7%
-        self.percentage_spin.setSingleStep(1.0)
-        self.percentage_spin.valueChanged.connect(self.update_param_range)
-        control_layout.addWidget(percentage_label)
-        control_layout.addWidget(self.percentage_spin)
-
-        wait_label = QLabel("Wait Time (s):")
-        self.wait_spin = QDoubleSpinBox()
-        self.wait_spin.setRange(0.0, 100.0)
-        self.wait_spin.setValue(3.0)
-        self.wait_spin.setSingleStep(0.5)
-        control_layout.addWidget(wait_label)
-        control_layout.addWidget(self.wait_spin)
-
-        main_layout.addLayout(control_layout)
-
-        # Third Line: Number of iterations, Acquisition function, and Exploration Param
-        settings_layout = QHBoxLayout()
-
-        iter_label = QLabel("Number of Iterations:")
-        self.iter_edit = QLineEdit("25")
-        settings_layout.addWidget(iter_label)
-        settings_layout.addWidget(self.iter_edit)
-
-        acq_label = QLabel("Acquisition Function:")
-        self.acq_combo = QComboBox()
-        self.acq_combo.addItems(["EI", "UCB"])
-        settings_layout.addWidget(acq_label)
-        settings_layout.addWidget(self.acq_combo)
-
-        expl_label = QLabel("Exploration Param (kappa or xi):")
-        self.expl_spin = QDoubleSpinBox()
-        self.expl_spin.setRange(0.0, 10.0)
-        self.expl_spin.setValue(0.01)
-        self.expl_spin.setSingleStep(0.01)
-        settings_layout.addWidget(expl_label)
-        settings_layout.addWidget(self.expl_spin)
-
-        # Info Dialog Button
-        help_button = QPushButton("?")
-        help_button.setFixedWidth(30)
-        help_button.clicked.connect(self.show_info_dialog)
-        settings_layout.addWidget(help_button)
-
-        main_layout.addLayout(settings_layout)
-
-        # Optimization Status and Set Buttons
-        status_layout = QHBoxLayout()
-
-        # Status labels
-        self.current_value_label = QLabel("Current Value of Input PV: N/A")
-        self.best_value_label = QLabel("Sampled Best Value: N/A at X: N/A")
-        self.best_predicted_label = QLabel("Predicted Best Value: N/A at X: N/A")
-
-        # Set parameter buttons
-        self.set_param_button = QPushButton("Set Param to Best X")
-        self.set_param_button.setEnabled(False)
-        self.set_param_button.clicked.connect(self.set_param_to_best_x)
-
-        self.set_pred_param_button = QPushButton("Set Param to Pred. Best X")
-        self.set_pred_param_button.setEnabled(False)
-        self.set_pred_param_button.clicked.connect(self.set_param_to_best_pred_x)
-
-        # Add labels and buttons to layout
-        status_layout.addWidget(self.current_value_label)
-        status_layout.addWidget(self.best_value_label)
-        status_layout.addWidget(self.best_predicted_label)
-        status_layout.addWidget(self.set_param_button)
-        status_layout.addWidget(self.set_pred_param_button)
-
-        main_layout.addLayout(status_layout)
-
-        # Run Button
-        self.run_button = QPushButton("Run Optimization")
-        self.run_button.clicked.connect(self.run_clicked)
-        main_layout.addWidget(self.run_button, alignment=Qt.AlignCenter)
-
-        # Plot Widget
-        self.plot_widget = PyQtGraphWidget()
-        main_layout.addWidget(self.plot_widget)
-
-        # Message Bar
-        self.message_label = QLabel("Ready")
-        main_layout.addWidget(self.message_label, alignment=Qt.AlignRight)
-
+        main_layout = create_main_layout(self)
         self.setLayout(main_layout)
-        self.setWindowTitle("Bayesian Optimization GUI")
+        self.setWindowTitle("Bae: A Bayesian Optimization GUI")
+
+    def update_fields_from_pv(self):
+        """
+        Update the Initial Value, Min Range, and Max Range fields based on the Input PV.
+        """
+        input_pv = self.input_pv_edit.text().strip()
+        if input_pv:
+            initial_value = caget(input_pv)
+            if initial_value is not None:
+                self.initial_value_edit.setText(f"{initial_value:.4f}")
+                self.initial_input_value = initial_value  # Store the initial value
+                percentage = self.percentage_spinbox.value() / 100.0
+                min_range = initial_value * (1.0 - percentage)
+                max_range = initial_value * (1.0 + percentage)
+                self.param_widget.set_range(min_range, max_range)
+            else:
+                self.update_message(f"Error: Could not read Input PV '{input_pv}'")
+        else:
+            self.initial_value_edit.clear()
+            self.param_widget.set_range(None, None)
+
+    def abort_clicked(self):
+        """
+        Abort the optimization process and reset the Input PV to its initial value.
+        """
+        if self.abort_callback:
+            self.abort_callback()
+        if self.initial_input_value is not None:
+            input_pv = self.input_pv_edit.text().strip()
+            caput(input_pv, self.initial_input_value)
+            self.update_message("Optimization aborted and input PV reset to its initial value.")
 
     def update_param_range(self):
         """
@@ -141,7 +55,7 @@ class MainWindow(QWidget):
         """
         try:
             initial_value = float(self.initial_value_edit.text())
-            percentage = self.percentage_spin.value() / 100.0
+            percentage = self.percentage_spinbox.value() / 100.0
             min_range = initial_value * (1.0 - percentage)
             max_range = initial_value * (1.0 + percentage)
             self.param_widget.set_range(min_range, max_range)

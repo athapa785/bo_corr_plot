@@ -10,10 +10,9 @@ from .data.mock_data import objective_function
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
 
-
 class BOController:
     def __init__(self):
-        self.window = MainWindow(self.start_optimization)
+        self.window = MainWindow(self.start_optimization, self.abort_optimization)
         self.timer = QTimer()
         self.timer.timeout.connect(self.run_iteration)
 
@@ -43,6 +42,7 @@ class BOController:
 
         # Fetch range
         min_range, max_range = self.window.param_widget.get_range()
+        print(f"Starting optimization with range: Min = {min_range}, Max = {max_range}")
         self.bounds = np.array([[min_range, max_range]])
 
         # Initialize the GP and data
@@ -79,6 +79,14 @@ class BOController:
         )
 
         self.timer.start(1000)  # 1 second delay per iteration
+
+
+    def abort_optimization(self):
+        """
+        Abort the optimization process.
+        """
+        self.timer.stop()
+        self.window.update_message("Optimization aborted.")
 
     def run_iteration(self):
         if self.current_iter < self.n_iter:

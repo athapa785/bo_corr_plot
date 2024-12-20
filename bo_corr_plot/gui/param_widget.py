@@ -1,62 +1,98 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QLineEdit
+from PyQt5.QtCore import QObject, pyqtSignal
 import numpy as np
+import epics
+from scipy.stats.qmc import LatinHypercube
 
 
-class ParameterWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.initUI()
+class ParameterWidget(QObject):
+    range_updated = pyqtSignal()  # Signal to notify range updates
 
-    def initUI(self):
-        layout = QHBoxLayout()
+    DEFAULT_MIN = -2.0
+    DEFAULT_MAX = 10.0
+    DEFAULT_PERCENTAGE = 7.0  # Default percentage for dynamic range adjustment
 
-        # Min and Max range fields
-        self.min_range_edit = QLineEdit("-2.0")
-        self.max_range_edit = QLineEdit("10.0")
-
-        layout.addWidget(QLabel("Min Range:"))
-        layout.addWidget(self.min_range_edit)
-        layout.addWidget(QLabel("Max Range:"))
-        layout.addWidget(self.max_range_edit)
-
-        self.setLayout(layout)
-
-    def get_range(self):
+    def __init__(self, min_range_edit, max_range_edit, percentage_spinbox):
         """
-        Get the current range for the parameter.
+        Initialize ParameterWidget with references to the UI components.
         """
-        try:
-            min_val = float(self.min_range_edit.text())
-            max_val = float(self.max_range_edit.text())
-            return min_val, max_val
-        except ValueError:
-            return -2.0, 10.0
+        super().__init__()
+        self.min_range_edit = min_range_edit
+        self.max_range_edit = max_range_edit
+        self.percentage_spinbox = percentage_spinbox
+
+        # Track if the user manually updates the range
+        self.user_modified_range = False
+
+        # Connect signals to monitor user input
+        self.min_range_edit.textChanged.connect(self.on_range_field_changed)
+        self.max_range_edit.textChanged.connect(self.on_range_field_changed)
+
+    def set_default_range(self):
+        """
+        Set the range to default values.
+        """
+        self.set_range(self.DEFAULT_MIN, self.DEFAULT_MAX)
 
     def set_range(self, min_range, max_range):
         """
-        Set the range for the parameter.
+        Set the range values in the UI fields.
         """
         self.min_range_edit.setText(f"{min_range:.4f}")
         self.max_range_edit.setText(f"{max_range:.4f}")
 
-    def set_default_range(self):
+    def get_range(self):
         """
-        Set the default range for the parameter.
+        Retrieve the current range from the UI fields. 
+        Prioritize user input over auto-populated values.
         """
-        self.set_range(-2.0, 10.0)
+        try:
+            min_val = float(self.min_range_edit.text())
+            max_val = float(self.max_range_edit.text())
+            if min_val < max_val:
+                return min_val, max_val
+            else:
+                raise ValueError("Min range must be less than max range.")
+        except ValueError:
+            return self.DEFAULT_MIN, self.DEFAULT_MAX
 
-    def set_range_from_pv(self, input_pv):
+    def set_range_from_pv(self, input_pv, percentage=None):
         """
-        Dynamically set the range based on the input PV.
+        Dynamically adjust the range based on the initial value of the Input PV.
+        If the PV is unavailable, fallback to default range.
         """
-        initial_value = 0.0  # Replace with actual PV reading logic if available
-        min_range = initial_value * 0.93
-        max_range = initial_value * 1.07
-        self.set_range(min_range, max_range)
+        if self.user_modified_range:
+            # If the user modified the range, do not overwrite it
+            return
 
-    def get_initial_samples(self):
+        try:
+            initial_value = epics.caget(input_pv)
+            if initial_value is None:
+                raise ValueError("Input PV could not be read.")
+
+            # Calculate dynamic range
+            percentage = percentage or self.DEFAULT_PERCENTAGE
+            min_range = initial_value * (1.0 - percentage / 100.0)
+            max_range = initial_value * (1.0 + percentage / 100.0)
+            self.set_range(min_range, max_range)
+
+        except Exception as e:
+            print(f"Error reading PV or setting range: {e}")
+            self.set_default_range()
+
+    def on_range_field_changed(self):
         """
-        Generate initial samples based on the current range.
+        Mark that the user has manually updated the range fields.
+        Disable the percentage spinbox to avoid conflicts.
+        """
+        self.user_modified_range = True
+        self.percentage_spinbox.setEnabled(False)
+        self.range_updated.emit()  # Notify that the range was updated
+
+    def get_initial_samples(self, n_samples=5):
+        """
+        Generate Latin Hypercube samples within the range.
         """
         min_range, max_range = self.get_range()
-        return np.array([[min_range], [max_range]])
+        sampler = LatinHypercube(d=1)
+        scaled_samples = sampler.random(n_samples) * (max_range - min_range) + min_range
+        return scaled_samples.reshape(-1, 1)
