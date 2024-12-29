@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication
 import qdarkstyle
-from .process import BOController
+from .core.process import BOController
 
 def main():
     """Main function to launch the GUI."""

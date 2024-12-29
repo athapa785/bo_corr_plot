@@ -1,11 +1,11 @@
 import numpy as np
 from PyQt5.QtCore import QTimer
 
-from .gui.ui import MainWindow
-from .core.acquisition import expected_improvement, upper_confidence_bound
-from .core.bo import propose_location
-from .epics.epics_interface import get_objective_value
-from .data.mock_data import objective_function
+from ..gui.ui import MainWindow
+from .acquisition import expected_improvement, upper_confidence_bound
+from .bo import propose_location
+from ..epics.epics_interface import get_objective_value
+from ..data.mock_data import objective_function
 
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
