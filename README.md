@@ -67,7 +67,7 @@ This links the project directory to the Python environment, so changes to the so
 
 - Simply run the following command to start the GUI:
     ```bash
-    bo-corr-plot
+    bae
 
 2. **Input Field:**
 
