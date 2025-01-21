@@ -1,9 +1,11 @@
+# bo_corr_plot/gui/pyqtgraph_widget.py
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout)
+from pyqtgraph.Qt import QtCore
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 import numpy as np
-from ..core.acquisition import expected_improvement, upper_confidence_bound
-from ..data.mock_data import objective_function
+import torch
+from botorch.acquisition.analytic import ExpectedImprovement, UpperConfidenceBound
+
 
 class PyQtGraphWidget(QWidget):
     def __init__(self, parent=None):
@@ -29,11 +31,11 @@ class PyQtGraphWidget(QWidget):
         self.top_plot.getAxis('bottom').setTextPen('w')
         self.top_plot.getAxis('left').setLabel('f(X)', color='w')
         self.top_plot.enableAutoRange('xy', True)
-        self.top_plot.addLegend(offset=(10,10))  # Add legend on top plot
+        self.top_plot.addLegend(offset=(10,10))
 
         self.layout_widget.nextRow()
 
-        # Bottom plot (Acquisition)
+        # Bottom plot
         self.bottom_plot = self.layout_widget.addPlot(row=1, col=0, title="Acquisition Function")
         self.bottom_plot.showGrid(x=True, y=True)
         self.bottom_plot.setTitle("Acquisition Function", color='w')
@@ -44,7 +46,7 @@ class PyQtGraphWidget(QWidget):
         self.bottom_plot.getAxis('left').setLabel('Acquisition', color='w')
         self.bottom_plot.getAxis('bottom').setLabel('X', color='w')
         self.bottom_plot.enableAutoRange('xy', True)
-        self.bottom_plot.addLegend(offset=(10,10))  # Add legend on bottom plot
+        self.bottom_plot.addLegend(offset=(10,10))
 
         # Crosshair lines
         self.vLine = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('w', style=QtCore.Qt.DashLine))
@@ -68,57 +70,88 @@ class PyQtGraphWidget(QWidget):
         self.top_plot.addItem(self.vLine, ignoreBounds=True)
         self.top_plot.addItem(self.hLine, ignoreBounds=True)
 
-    def update_plot(self, gpr, X, X_samples, Y_samples, iteration, acquisition_function, exploration_param):
+    def update_plot_botorch(self, model, X_np, X_torch, X_samples, Y_samples,
+                            iteration, acquisition_function, exploration_param):
+        """
+        Update the top/bottom plots using the BoTorch model's posterior
+        and built-in acquisition functions (EI or UCB).
+        """
         self.clear_plots()
 
-        sort_idx = np.argsort(X.flatten())
-        X_sorted = X.flatten()[sort_idx]
+        # Convert to torch
+        model.eval()
+        with torch.no_grad():
+            posterior = model(X_torch)  # shape: (N_eval, 1)
+            mean = posterior.mean.view(-1).detach().numpy()
+            std = posterior.variance.sqrt().view(-1).detach().numpy()
 
-        Y_pred, sigma = gpr.predict(X, return_std=True)
-        Y_pred = Y_pred[sort_idx]
-        sigma = sigma[sort_idx]
+        # Sort by X for nice plotting
+        sort_idx = np.argsort(X_np.flatten())
+        X_sorted = X_np.flatten()[sort_idx]
+        mean_sorted = mean[sort_idx]
+        std_sorted = std[sort_idx]
 
-        upper = Y_pred + 1.96*sigma
-        lower = Y_pred - 1.96*sigma
+        upper = mean_sorted + 1.96 * std_sorted
+        lower = mean_sorted - 1.96 * std_sorted
 
         # Best sample
         best_idx = Y_samples.argmax()
         best_x = X_samples[best_idx][0]
         best_y = Y_samples[best_idx][0]
 
-        # Acquisition
-        if acquisition_function == 'ei':
-            acq = expected_improvement(X, X_samples, Y_samples, gpr, xi=exploration_param)
-            acq_label = f'EI (xi={exploration_param:.2f})'
+        # Build an acquisition function instance for the bottom plot
+        if acquisition_function == "ei":
+            best_f = float(Y_samples.max())
+            acq_fn = ExpectedImprovement(model, best_f=best_f)
+            label_str = f"EI (best_f={best_f:.3f}, xi~0)"
         else:
-            acq = upper_confidence_bound(X, X_samples, Y_samples, gpr, kappa=exploration_param)
-            acq_label = f'UCB (kappa={exploration_param:.2f})'
+            acq_fn = UpperConfidenceBound(model, beta=exploration_param)
+            label_str = f"UCB (beta={exploration_param:.3f})"
 
-        acq = acq[sort_idx]
+        # Fix shape of X_torch for the acquisition function
+        with torch.no_grad():
+            acq_values = acq_fn(X_torch.unsqueeze(-2)).view(-1).detach().numpy()
+        acq_values_sorted = acq_values[sort_idx]
 
-        self.top_plot.setTitle(f"Iteration {iteration}: Gaussian Process Regression and Samples", color='w')
+        self.top_plot.setTitle(f"Iteration {iteration}: BoTorch GP + Samples", color='w')
 
-        # Plot GP prediction with a name
-        gp_line = self.top_plot.plot(X_sorted, Y_pred, pen=pg.mkPen('w', width=2), name='GP Prediction')
+        # Plot mean
+        gp_line = self.top_plot.plot(
+            X_sorted, mean_sorted, 
+            pen=pg.mkPen('w', width=2),
+            name='GP Mean'
+        )
 
         # Confidence interval
         transparent_pen = pg.mkPen(color=(0,0,0,0))
         upper_curve = self.top_plot.plot(X_sorted, upper, pen=transparent_pen)
         lower_curve = self.top_plot.plot(X_sorted, lower, pen=transparent_pen)
-
         fill_brush = (0,191,255,100)
         fill = pg.FillBetweenItem(upper_curve, lower_curve, brush=fill_brush)
         self.top_plot.addItem(fill)
 
         # Samples
-        self.top_plot.plot(X_samples.flatten(), Y_samples.flatten(), pen=None, symbol='o', symbolPen=None,
-                           symbolSize=6, symbolBrush='r', name='Samples')
+        self.top_plot.plot(
+            X_samples.flatten(),
+            Y_samples.flatten(),
+            pen=None, symbol='o', symbolPen=None,
+            symbolSize=6, symbolBrush='r',
+            name='Samples'
+        )
 
         # Best sample
-        self.top_plot.plot([best_x], [best_y], pen=None, symbol='star', symbolSize=10, symbolBrush='g', name='Best Sample')
+        self.top_plot.plot(
+            [best_x], [best_y],
+            pen=None, symbol='star', symbolSize=10, symbolBrush='g',
+            name='Best Sample'
+        )
 
-        # Acquisition
-        self.bottom_plot.plot(X_sorted, acq, pen=pg.mkPen('lime', width=2), name=acq_label)
+        # Plot the acquisition
+        self.bottom_plot.plot(
+            X_sorted, acq_values_sorted,
+            pen=pg.mkPen('lime', width=2),
+            name=label_str
+        )
 
         # Auto-range
         self.top_plot.enableAutoRange('xy', True)

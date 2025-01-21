@@ -16,7 +16,10 @@ dependencies = [
     "pyqt5>=5.15.4",
     "pyqtgraph>=0.12.3",
     "qdarkstyle>=3.0.3",
-    "pyepics>=3.5.1"
+    "pyepics>=3.5.1",
+    "torch>=1.10.0",     # PyTorch
+    "gpytorch>=1.9",     # GPyTorch
+    "botorch>=0.8.0"     # BoTorch
 ]
 requires-python = ">=3.8"
 classifiers = [
