@@ -109,7 +109,7 @@ The project dependencies are managed in the pyproject.toml file. Key dependencie
 - *Python 3.8+*
 - *PyQt5*: For GUI development.
 - *PyQtGraph:* For real-time interactive plotting.
-- *NumPy: *Numerical computations.
+- *NumPy:* Numerical computations.
 - *scikit-learn*
 - *qdarkstyle:* Modern dark theme for the GUI.
 - *pyepics:* For EPICS integration (optional).
