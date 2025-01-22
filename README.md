@@ -55,7 +55,10 @@ The GUI is built using **PyQt5** and interactive plots are powered by **PyQtGrap
 
 ## Install in Editable Mode:
 
-If you want to make changes to the code and test them in real time, install the project in editable mode: pip install -e .
+If you want to make changes to the code and test them in real time, install the project in editable mode: 
+
+```bash
+pip install -e .
 
 This links the project directory to the Python environment, so changes to the source code are reflected immediately without needing to reinstall.
 
@@ -108,10 +111,12 @@ The project dependencies are managed in the pyproject.toml file. Key dependencie
 - *PyQt5*: For GUI development.
 - *PyQtGraph:* For real-time interactive plotting.
 - *NumPy: *Numerical computations.
-- *scikit-learn:* Gaussian Process Regression.
+- *scikit-learn*
 - *qdarkstyle:* Modern dark theme for the GUI.
 - *pyepics:* For EPICS integration (optional).
-
+- *torch:* PyTorch
+- *gpytorch:* Gaussian Process Regression
+- *botorch:*" Bayesian Optimization
 
 ---
 
