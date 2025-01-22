@@ -115,7 +115,7 @@ The project dependencies are managed in the pyproject.toml file. Key dependencie
 - *pyepics:* For EPICS integration (optional).
 - *torch:* PyTorch
 - *gpytorch:* Gaussian Process Regression
-- *botorch:*" Bayesian Optimization
+- *botorch:* Bayesian Optimization
 
 ---
 
