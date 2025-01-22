@@ -13,7 +13,6 @@ from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_model
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.acquisition.analytic import ExpectedImprovement, UpperConfidenceBound
-from botorch.optim import optimize_acqf
 
 # We use propose_location_botorch from bo.py
 from .bo import propose_location_botorch
